@@ -7,7 +7,9 @@ jobs:
   test:
     name: Tests in ${{ matrix.build_type }} with ${{ matrix.compilerSetter }}
     runs-on: ubuntu-20.04
-    container: ubuntu:20.04
+    container: 
+      image: ubuntu:20.04
+      options: --privileged
     env:
       DEBIAN_FRONTEND: noninteractive
     strategy:
