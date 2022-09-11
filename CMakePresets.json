@@ -20,9 +20,9 @@
         "displayName": "debug",
         "description": "Debug build without sanitizers",
         "cacheVariables": {
-            "CMAKE_BUILD_TYPE": "Debug",
+            "CMAKE_BUILD_TYPE": "Debug"
         },
-        "binaryDir": "cmake-build-SanitizedDebug"
+        "binaryDir": "cmake-build-Debug"
       },
       {
         "name": "SanitizedDebug",
