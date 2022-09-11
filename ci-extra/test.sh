@@ -3,7 +3,7 @@ set -euo pipefail
 IFS=$' \t\n'
 
 if [[ $1 == "Debug" ]]; then
-    gdb -q --batch \
+    gdb -q -return-child-result --batch \
         -ex 'handle SIGHUP nostop pass' \
         -ex 'handle SIGQUIT nostop pass' \
         -ex 'handle SIGPIPE nostop pass' \
