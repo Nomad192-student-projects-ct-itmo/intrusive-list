@@ -248,6 +248,11 @@ TEST(intrusive_list_testing, multiple_tags) {
   EXPECT_EQ(list_b.front().value, 3);
 }
 
+TEST(intrusive_list_testing, move_empty_node) {
+  node a(1);
+  node b = std::move(a);
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
