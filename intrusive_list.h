@@ -1,279 +1,245 @@
 #pragma once
 
-#include <iostream>
+#include <cstddef>
+#include <iterator>
 
 namespace intrusive {
 struct default_tag;
 
-struct list_base
-{
-  list_base *prev = nullptr;
-  list_base *next = nullptr;
+template <typename T, typename Tag>
+class list;
 
+class list_base {
+  list_base* prev = nullptr;
+  list_base* next = nullptr;
+  template <typename T, typename lTag>
+  friend class list;
+
+public:
   list_base() = default;
-  list_base (const list_base &); //copy
-  list_base (list_base &&); //move
+  list_base(const list_base&); // copy
+  list_base(list_base&&);      // move
 
-  list_base &operator=(list_base const&old) = default; //copy
+  list_base& operator=(list_base const& old) = default; // copy
 
-  bool operator==(list_base const&other) const;
-  bool operator!=(list_base const&other) const;
+  bool operator==(list_base const& other) const;
+  bool operator!=(list_base const& other) const;
 
-  void link(list_base &);
-  //void link_prev(list_base &cur);
+  void link(list_base&);
   void unlink();
   ~list_base();
 };
+
+template <typename T, typename Tag>
+class list;
 
 template <typename Tag = default_tag>
 struct list_element : public list_base {};
 
 template <typename T, typename Tag = default_tag>
-struct list {
+class list {
   list_element<Tag> sentinel;
-
-  list()
-  {
-    close();
-  }
-
-  void close()
-  {
+  void reset() {
     sentinel.next = &sentinel;
     sentinel.prev = &sentinel;
   }
+  static list_element<Tag>& make_ref(T& old_ref) {
+    return static_cast<list_element<Tag>&>(old_ref);
+  }
+  static list_element<Tag>& make_ref(list_base& old_ref) {
+    return static_cast<list_element<Tag>&>(old_ref);
+  }
+  static list_element<Tag>* make_p(list_base* old_p) {
+    return static_cast<list_element<Tag>*>(old_p);
+  }
 
-  list(list<T> &&old)
-  {
-    if(old.empty())
-      close();
-    else
-    {
-      list_base &end = *old.sentinel.prev;
+public:
+  list() {
+    reset();
+  }
+
+  // move constructor default?
+  list(list<T>&& old) {
+    if (old.empty()) {
+      reset();
+    } else {
+      list_base& end = *old.sentinel.prev;
       old.sentinel.unlink();
-      old.close();
+      old.reset();
       sentinel.link(end);
     }
   }
 
-  //move constructor default
-
-  static list_element<Tag> &make_ref(T &old_ref)
-  {
-    return static_cast<list_element<Tag> &>(old_ref);
-  }
-
-  static list_element<Tag> &make_ref(list_base &old_ref)
-  {
-    return static_cast<list_element<Tag> &>(old_ref);
-  }
-
-  static list_element<Tag> *make_p(list_base *old_p)
-  {
-    return static_cast<list_element<Tag> *>(old_p);
-  }
-
-  list &operator=(list<T> &&old)
-  {
+  // move operator default?
+  list& operator=(list<T>&& old) {
     if (this == &old)
       return *this;
 
-    if(old.empty())
-      close();
-    else
-    {
-      list_base &end = *old.sentinel.prev;
+    if (old.empty()) {
+      reset();
+    } else {
+      list_base& end = *old.sentinel.prev;
       old.sentinel.unlink();
-      old.close();
+      old.reset();
       sentinel.link(end);
     }
 
     return *this;
   }
 
-  void push_back(T &data)
-  {
+  void push_back(T& data) {
     make_ref(data).link(make_ref(*sentinel.prev));
   }
 
-  void pop_back()
-  {
+  void pop_back() {
     sentinel.prev->unlink();
   }
 
-  void push_front(T &data)
-  {
+  void push_front(T& data) {
     data.link(sentinel);
   }
 
-  void pop_front()
-  {
+  void pop_front() {
     sentinel.next->unlink();
   }
 
-  T const&front() const
-  {
-    return static_cast<T &>(make_ref(*sentinel.next));
+  T const& front() const {
+    return static_cast<T&>(make_ref(*sentinel.next));
   }
 
-  T const&back() const
-  {
-    return static_cast<T &>(make_ref(*sentinel.prev));
+  T const& back() const {
+    return static_cast<T&>(make_ref(*sentinel.prev));
   }
 
-  T &front()
-  {
-    return static_cast<T &>(make_ref(*sentinel.next));
+  T& front() {
+    return static_cast<T&>(make_ref(*sentinel.next));
   }
 
-  T &back()
-  {
-    return static_cast<T &>(make_ref(*sentinel.prev));
+  T& back() {
+    return static_cast<T&>(make_ref(*sentinel.prev));
   }
 
-  bool empty()
-  {
-    //std::cout << sentinel.next << " " << &sentinel << std::endl;
+  bool empty() {
     return sentinel.next == &sentinel;
   }
 
-  ~list()
-  {
-    list_base *cur = (sentinel.next);
-    while(cur != &sentinel)
-    {
-      list_base *next = cur->next;
-      cur->prev = nullptr;
-      cur->next = nullptr;
-      cur = next;
+  ~list() {
+    while (!empty()) {
+      pop_back();
     }
   }
 
+private:
+  template <typename iT>
+  class list_iterator {
+  private:
+    list_element<Tag>* cur = nullptr;
+    list_iterator(decltype(cur) cur) : cur(cur) {}
+    template <typename lT, typename lTag>
+    friend class list;
 
-  template <typename iT, bool isConst>
-  struct list_iterator{
-    using difference_type   = ptrdiff_t;
-    using value_type        = std::conditional_t<isConst, const iT, iT>;
-    using pointer           = value_type *;
-    using reference         = value_type &;
+  public:
+    using difference_type = ptrdiff_t;
+    using value_type = iT;
+    using pointer = value_type*;
+    using reference = value_type&;
     using iterator_category = std::bidirectional_iterator_tag;
 
     list_iterator() = default;
 
-    list_element<Tag> *cur = nullptr;
-
-    //list_iterator(list_iterator<iT, true> &other) : cur(other.cur)  { }
-    list_iterator(list_iterator<iT, false> const&other) : cur(other.cur)  { }
-
-    list_iterator(list_element<Tag> *cur) : cur(cur) {}
-
-    template<bool isConst_1>
-    bool operator==(list_iterator<iT, isConst_1> const&other) const
-    {
+    bool operator==(list_iterator<iT> const& other) const {
       return *cur == *other.cur;
     }
 
-    template<bool isConst_1>
-    bool operator!=(list_iterator<iT, isConst_1> const&other) const
-    {
+    bool operator!=(list_iterator<iT> const& other) const {
       return *cur != *other.cur;
     }
 
-    reference operator*() const
-    {
-      return static_cast<iT &>(*cur);
+    reference operator*() const {
+      return static_cast<iT&>(*cur);
     }
 
-    pointer operator->() const
-    {
-      return static_cast<iT *>(cur);
+    pointer operator->() const {
+      return static_cast<iT*>(cur);
     }
 
-    list_iterator &operator++()
-    {
+    list_iterator& operator++() {
       cur = make_p(cur->next);
       return *this;
     }
-    list_iterator &operator--()
-    {
+    list_iterator& operator--() {
       cur = make_p(cur->prev);
       return *this;
     }
-    list_iterator operator++(int)
-    {
-      list_iterator res (*this);
+    list_iterator operator++(int) {
+      list_iterator res(*this);
       cur = make_p(cur->next);
       return res;
     }
-    list_iterator operator--(int)
-    {
-      list_iterator res (*this);
+    list_iterator operator--(int) {
+      list_iterator res(*this);
       cur = make_p(cur->prev);
       return res;
+    }
+
+    operator list_iterator<const iT>() const {
+      return {cur};
     }
   };
 
-  using iterator = list_iterator<T, false>;
-  using const_iterator = list_iterator<T, true>;
+public:
+  using iterator = list_iterator<T>;
+  using const_iterator = list_iterator<const T>;
 
-  iterator begin()
-  {
+  iterator begin() {
     return {make_p(sentinel.next)};
   }
 
-  const_iterator begin() const
-  {
+  const_iterator begin() const {
     return {make_p(sentinel.next)};
   }
 
-  iterator end()
-  {
+  iterator end() {
     return {&sentinel};
   }
 
-  const_iterator end() const
-  {
-    return {const_cast<list_element<Tag> *>(&sentinel)};
+  const_iterator end() const {
+    return {const_cast<list_element<Tag>*>(&sentinel)};
   }
 
-  iterator insert(const_iterator const&it, T &data)
-  {
+  iterator insert(iterator const& it, T& data) {
     data.link(*(it.cur->prev));
     return iterator(make_p(it.cur->prev));
   }
 
-  iterator erase(iterator const&it)
-  {
-    list_base *next = it.cur->next;
+  iterator erase(iterator const& it) {
+    list_base* next = it.cur->next;
     it.cur->unlink();
     return iterator(make_p(next));
   }
 
-  void splice(const_iterator pos, list &other,
-              const_iterator first, const_iterator last)
-  {
-    if(this == &other && last == pos)
+private:
+  void link(list_base* a, list_base* b) {
+    a->next = b;
+    b->prev = a;
+  }
+
+public:
+  void splice(const_iterator pos, list& other, const_iterator first,
+              const_iterator last) {
+    if (last == pos) // this == &other &&? why then other?
       return;
 
-    if(first == last)
+    if (first == last)
       return;
-
-    if(first.cur->next == last.cur)
-    {
-      first.cur->unlink();
-      insert(pos, static_cast<T &>(*first.cur));
-      return;
-    }
-
-    last->prev->next = pos.cur;       //1
-    pos.cur->prev->next = first.cur;  //2
-    first.cur->prev->next = last.cur; //3
 
     auto pos_prev = pos.cur->prev;
+    auto first_prev = first.cur->prev;
+    auto last_prev = last.cur->prev;
 
-    pos.cur->prev = last.cur->prev;   //4
-    last.cur->prev = first.cur->prev; //5
-    first.cur->prev = pos_prev;       //6
+    link(pos_prev, first.cur);
+    link(last_prev, pos.cur);
+    link(first_prev, last.cur);
   }
 };
 } // namespace intrusive
