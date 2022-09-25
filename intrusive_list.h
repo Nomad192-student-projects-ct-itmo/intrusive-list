@@ -147,11 +147,13 @@ private:
 
     list_iterator() = default;
 
-    bool operator==(list_iterator<iT> const& other) const {
+    template <typename eq_iT>
+    bool operator==(list_iterator<eq_iT> const& other) const {
       return *cur == *other.cur;
     }
 
-    bool operator!=(list_iterator<iT> const& other) const {
+    template <typename eq_iT>
+    bool operator!=(list_iterator<eq_iT> const& other) const {
       return *cur != *other.cur;
     }
 
