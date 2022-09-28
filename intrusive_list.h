@@ -75,6 +75,8 @@ public:
     if (this == &old)
       return *this;
 
+    this->sentinel.unlink();
+
     if (old.empty()) {
       reset();
     } else {
